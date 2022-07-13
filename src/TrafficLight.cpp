@@ -34,7 +34,7 @@ void MessageQueue<T>::send(T &&msg)
 
     _queue.clear();
     // add vector to queue
-    _queue.push_back(msg);
+    _queue.emplace_back(msg);
     _condition.notify_one(); // notify client after pushing new Vehicle into vector
 }
 
@@ -78,7 +78,12 @@ void TrafficLight::cycleThroughPhases()
     // to the message queue using move semantics. The cycle duration should be a random value between 4 and 6 seconds. 
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles. 
     std::chrono::time_point<std::chrono::system_clock> lastUpdate;
-    double cycleDuration = 4;
+    long timeSinceLastUpdate = 0;
+    std::unique_lock<std::mutex> uLock(_mutex);
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist6(4,6);
+    double cycleDuration = dist6(rng);
 
     // init stop watch
     lastUpdate = std::chrono::system_clock::now();
@@ -88,13 +93,11 @@ void TrafficLight::cycleThroughPhases()
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         // compute time difference to stop watch
-        long timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
+        timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
         if (timeSinceLastUpdate >= (cycleDuration*1000))
         {
             std::unique_lock<std::mutex> uLock(_mutex);
-            std::random_device dev;
-            std::mt19937 rng(dev());
-            std::uniform_int_distribution<std::mt19937::result_type> dist6(4,6);
+
             cycleDuration = dist6(rng);
 
             _currentPhase = (_currentPhase == TrafficLightPhase::red)? TrafficLightPhase::green : TrafficLightPhase::red;
